@@ -1,7 +1,10 @@
 const express = require("express");
 const requireAuth = require("../middleware/requireAuth");
 const WatchlistItem = require("../models/WatchlistItem");
+const Snapshot = require("../models/Snapshot");
+const Checkpoint = require("../models/Checkpoint");
 const normalizeTicker = require("../utils/normalizeTicker");
+const { computeWatchlistStatus } = require("../watchlist/computeStatus");
 
 const router = express.Router();
 
@@ -9,6 +12,11 @@ router.use(requireAuth);
 
 router.get("/watchlist", async (req, res) => {
     const items = await WatchlistItem.find({ userId: req.userId }).sort({ addedAt: -1 });
+    res.json({ success: true, items });
+});
+
+router.get("/watchlist/status", async (req, res) => {
+    const items = await computeWatchlistStatus(req.userId);
     res.json({ success: true, items });
 });
 
@@ -21,6 +29,19 @@ router.post("/watchlist", async (req, res) => {
 
     try {
         const item = await WatchlistItem.create({ userId: req.userId, ticker });
+
+        // D14: new ticker = all-seen baseline as of the latest snapshot. If no
+        // snapshot exists yet, leave the checkpoint unset - it reads as
+        // awaiting-data, never as a change.
+        const latestSnapshot = await Snapshot.findOne({ ticker }).sort({ tradingDate: -1 }).lean();
+        if (latestSnapshot) {
+            await Checkpoint.findOneAndUpdate(
+                { userId: req.userId, ticker },
+                { $set: { lastSeenTradingDate: latestSnapshot.tradingDate, lastSeenAt: new Date() } },
+                { upsert: true }
+            );
+        }
+
         res.status(201).json({ success: true, item });
     } catch (err) {
         if (err.code === 11000) {
@@ -42,6 +63,8 @@ router.delete("/watchlist/:ticker", async (req, res) => {
     if (!deleted) {
         return res.status(404).json({ success: false, error: "Ticker not found in watchlist" });
     }
+
+    await Checkpoint.deleteOne({ userId: req.userId, ticker });
 
     res.json({ success: true });
 });

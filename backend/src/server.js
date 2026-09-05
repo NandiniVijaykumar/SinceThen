@@ -3,9 +3,11 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const meRouter = require("./routes/me");
 const watchlistRouter = require("./routes/watchlist");
+const checkpointsRouter = require("./routes/checkpoints");
 const internalSnapshotRouter = require("./routes/internalSnapshot");
 const WatchlistItem = require("./models/WatchlistItem");
 const Snapshot = require("./models/Snapshot");
+const Checkpoint = require("./models/Checkpoint");
 
 require("dotenv").config();
 
@@ -27,12 +29,13 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api", meRouter);
 app.use("/api", watchlistRouter);
+app.use("/api", checkpointsRouter);
 app.use(internalSnapshotRouter);
 
 const PORT = process.env.PORT || 3000;
 
 connectDB()
-    .then(() => Promise.all([WatchlistItem.syncIndexes(), Snapshot.syncIndexes()]))
+    .then(() => Promise.all([WatchlistItem.syncIndexes(), Snapshot.syncIndexes(), Checkpoint.syncIndexes()]))
     .then(() => {
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
