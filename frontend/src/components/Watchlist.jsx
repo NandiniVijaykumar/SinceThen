@@ -4,7 +4,7 @@ import AddTickerForm from './AddTickerForm'
 import TickerDetail from './TickerDetail'
 import WatchlistList from './WatchlistList'
 
-function Watchlist({ token }) {
+function Watchlist({ token, onLogout }) {
   const [items, setItems] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
@@ -91,9 +91,14 @@ function Watchlist({ token }) {
     <div className="app-shell">
       <header className="app-header">
         <h1>Watchlist</h1>
-        <button type="button" onClick={handleMarkAllSeen} disabled={!items || items.length === 0}>
-          Mark all seen
-        </button>
+        <div className="app-header__actions">
+          <button type="button" onClick={handleMarkAllSeen} disabled={!items || items.length === 0}>
+            Mark all seen
+          </button>
+          <button type="button" className="app-header__logout" onClick={onLogout}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       <AddTickerForm onAdd={handleAdd} />

@@ -1,6 +1,7 @@
-/* ---------- Login ---------- */
+/* ---------- Login / loading ---------- */
 
-.login-screen {
+.login-screen,
+.app-loading-screen {
   min-height: 100svh;
   display: flex;
   align-items: center;
@@ -62,6 +63,21 @@
 .app-header button:not(:disabled):hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header button.app-header__logout {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.app-header button.app-header__logout:hover {
+  color: var(--down);
 }
 
 /* ---------- Add-ticker form ---------- */
