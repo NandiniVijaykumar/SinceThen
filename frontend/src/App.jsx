@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { StrictMode, useEffect, useState } from 'react'
 import { fetchMe } from './api'
 import Login from './components/Login'
 import Watchlist from './components/Watchlist'
@@ -53,10 +53,20 @@ function App() {
   }
 
   if (!token) {
+    // Deliberately outside StrictMode: @react-oauth/google's <GoogleLogin> calls
+    // google.accounts.id.initialize() in a mount effect with no re-entrancy guard.
+    // StrictMode's dev-mode mount->unmount->remount cycle double-fires that effect,
+    // which is exactly the "initialize() called multiple times" race that made
+    // sign-in intermittent. Login has no complex effects of its own to benefit
+    // from StrictMode's checks, so it's simplest to just keep it out entirely.
     return <Login onToken={handleToken} />
   }
 
-  return <Watchlist token={token} onLogout={handleLogout} />
+  return (
+    <StrictMode>
+      <Watchlist token={token} onLogout={handleLogout} />
+    </StrictMode>
+  )
 }
 
 export default App
