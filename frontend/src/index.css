@@ -18,6 +18,9 @@
   --awaiting-bg: #f6f5f8;
   --awaiting-border: #cfcbd6;
 
+  --invalid-bg: #f5f0f7;
+  --invalid-border: #b3a3c2;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
@@ -51,6 +54,9 @@
 
     --awaiting-bg: #1c1d24;
     --awaiting-border: #3a3c47;
+
+    --invalid-bg: rgba(179, 163, 194, 0.1);
+    --invalid-border: #6b5b7f;
   }
 }
 

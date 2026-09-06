@@ -311,6 +311,15 @@
   color: var(--text);
 }
 
+/* Invalid: still a soft, non-alarming read (never the --down red used for real
+   errors) but a dotted border keeps it visually distinct from plain awaiting-data's
+   dashed one - this is "probably not coming back," not "still loading." */
+.item-row--invalid {
+  background: var(--invalid-bg);
+  border-style: dotted;
+  border-color: var(--invalid-border);
+}
+
 /* ---------- Shared bits ---------- */
 
 .badge {
@@ -325,6 +334,11 @@
 
 .badge--awaiting {
   background: var(--awaiting-border);
+  color: var(--bg);
+}
+
+.badge--invalid {
+  background: var(--invalid-border);
   color: var(--bg);
 }
 

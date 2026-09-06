@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const WatchlistItem = require("../models/WatchlistItem");
 const Snapshot = require("../models/Snapshot");
 const fetchTickerSnapshot = require("./fetchTickerSnapshot");
+const { classifyFetchError, recordFetchOutcome } = require("./fetchStatus");
 
 const DELAY_MS = 200; // space between per-ticker calls, within a round
 const RATE_LIMIT_COOLDOWN_MS = 45_000; // fixed cooldown before retrying a rate-limited round
@@ -17,7 +18,7 @@ function sleep(ms) {
 // Mongoose's Number schema-type cast unwraps a bson.Double back down to a plain JS
 // number before handing it to the driver, and the driver then BSON-encodes any
 // whole-valued JS number as int32, not double (e.g. a round close price like 1140,
-// or volume). That's the actual cause of the int/double inconsistency (D8) - fixing
+// or volume). That's the actual cause of the int/double inconsistency - fixing
 // it requires writing through the native collection, bypassing Mongoose's cast, so
 // the Double wrapper survives to serialization.
 function toDoubleFields(snapshot) {
@@ -26,17 +27,6 @@ function toDoubleFields(snapshot) {
         fields[key] = fields[key] === null ? null : new Double(Number(fields[key]));
     }
     return fields;
-}
-
-// Yahoo signals rate-limiting in whatever shape the underlying HTTP client/library
-// surfaces it in - an HTTP status on the error, or just wording in the message.
-// Treated as strictly distinct from a per-ticker "no data / not found" failure:
-// rate-limiting is transient and about the caller, never evidence the ticker itself
-// is bad, so it must never count toward invalidating a ticker's data.
-function isRateLimitError(err) {
-    const status = err?.response?.status ?? err?.statusCode ?? err?.status;
-    if (status === 429) return true;
-    return typeof err?.message === "string" && /429|too many requests|rate.?limit/i.test(err.message);
 }
 
 async function upsertSnapshot(snapshot) {
@@ -84,15 +74,20 @@ async function ingestSnapshots(tickers) {
             try {
                 const snapshot = await fetchTickerSnapshot(ticker);
                 await upsertSnapshot(snapshot);
+                await recordFetchOutcome(ticker, "success");
                 summary.succeeded += 1;
             } catch (err) {
-                if (isRateLimitError(err)) {
+                const classification = classifyFetchError(err);
+
+                if (classification === "rateLimit") {
                     rateLimited.push(ticker);
                 } else {
-                    // Genuine per-ticker failure (bad symbol, malformed data, etc.) -
+                    // Genuine per-ticker failure (not-found or ambiguous/transient) -
                     // never overwrite a good snapshot; just skip this ticker's upsert.
                     summary.failed.push({ ticker, error: err.message });
                 }
+
+                await recordFetchOutcome(ticker, classification);
             }
 
             if (i < pending.length - 1) {

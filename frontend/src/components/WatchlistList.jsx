@@ -3,9 +3,10 @@ import { Freshness, PercentChange } from './Indicators'
 
 function ItemRow({ item, variant, onSelect, onRemove }) {
   const isAwaiting = variant === 'awaiting-data'
+  const isInvalid = isAwaiting && item.fetchStatus === 'invalid'
 
   return (
-    <div className={`item-row item-row--${variant}`}>
+    <div className={`item-row item-row--${variant}${isInvalid ? ' item-row--invalid' : ''}`}>
       <div
         className="item-row__main"
         role="button"
@@ -21,7 +22,9 @@ function ItemRow({ item, variant, onSelect, onRemove }) {
         </div>
 
         {isAwaiting ? (
-          <span className="badge badge--awaiting">Awaiting data</span>
+          <span className={`badge ${isInvalid ? 'badge--invalid' : 'badge--awaiting'}`}>
+            {isInvalid ? 'Symbol may be invalid' : 'Awaiting data'}
+          </span>
         ) : (
           <div className="item-row__metrics">
             <span className="item-row__price">₹{formatPrice(item.close)}</span>

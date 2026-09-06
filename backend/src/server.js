@@ -8,6 +8,7 @@ const internalSnapshotRouter = require("./routes/internalSnapshot");
 const WatchlistItem = require("./models/WatchlistItem");
 const Snapshot = require("./models/Snapshot");
 const Checkpoint = require("./models/Checkpoint");
+const FetchStatus = require("./models/FetchStatus");
 
 require("dotenv").config();
 
@@ -35,7 +36,7 @@ app.use(internalSnapshotRouter);
 const PORT = process.env.PORT || 3000;
 
 connectDB()
-    .then(() => Promise.all([WatchlistItem.syncIndexes(), Snapshot.syncIndexes(), Checkpoint.syncIndexes()]))
+    .then(() => Promise.all([WatchlistItem.syncIndexes(), Snapshot.syncIndexes(), Checkpoint.syncIndexes(), FetchStatus.syncIndexes()]))
     .then(() => {
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);

@@ -1,8 +1,9 @@
 const WatchlistItem = require("../models/WatchlistItem");
 const Snapshot = require("../models/Snapshot");
 const Checkpoint = require("../models/Checkpoint");
+const FetchStatus = require("../models/FetchStatus");
 
-const Z_THRESHOLD = 2; // D7: |z| >= 2 is "meaningful" (~top 5% of a stock's own moves)
+const Z_THRESHOLD = 2; // |z| >= 2 is "meaningful" (~top 5% of a stock's own moves)
 
 function isMeaningful(snapshot) {
     return (snapshot.zScore !== null && Math.abs(snapshot.zScore) >= Z_THRESHOLD) || snapshot.is52wHigh || snapshot.is52wLow;
@@ -25,7 +26,7 @@ function buildReason(snapshot) {
     return parts.join(" — ");
 }
 
-// Three-state model (CLAUDE.md §13): "awaiting-data" (no/insufficient snapshot),
+// Three-state model: "awaiting-data" (no/insufficient snapshot),
 // "changed" (new + meaningful since the user's checkpoint), "quiet" (everything else).
 // Absence of data must never be reported as absence of change.
 async function computeWatchlistStatus(userId) {
@@ -42,9 +43,16 @@ async function computeWatchlistStatus(userId) {
     const checkpoints = await Checkpoint.find({ userId, ticker: { $in: tickers } }).lean();
     const checkpointByTicker = new Map(checkpoints.map((c) => [c.ticker, c]));
 
+    const fetchStatuses = await FetchStatus.find({ ticker: { $in: tickers } }).lean();
+    const fetchStatusByTicker = new Map(fetchStatuses.map((f) => [f.ticker, f]));
+
     const results = items.map((item) => {
         const snapshot = snapshotByTicker.get(item.ticker) || null;
         const checkpoint = checkpointByTicker.get(item.ticker) || null;
+        const fetchStatusDoc = fetchStatusByTicker.get(item.ticker) || null;
+        // Back-compat default for tickers added before fetch-status tracking existed:
+        // a snapshot already on file reads as 'ok', otherwise 'pending'.
+        const fetchStatus = fetchStatusDoc ? fetchStatusDoc.fetchStatus : snapshot ? "ok" : "pending";
 
         let state;
         let reason = "";
@@ -67,6 +75,7 @@ async function computeWatchlistStatus(userId) {
             ticker: item.ticker,
             state,
             reason,
+            fetchStatus,
             name: snapshot ? snapshot.name : null,
             close: snapshot ? snapshot.close : null,
             changePct: snapshot ? snapshot.changePct : null, // ratio - UI multiplies by 100

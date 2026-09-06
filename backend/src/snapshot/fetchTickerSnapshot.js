@@ -26,12 +26,7 @@ function sampleStdDev(values, mean) {
     return Math.sqrt(sumSquares / (values.length - 1));
 }
 
-// Single-field-lineage (D8): every derived value below comes from this one chart()
-// series - the row picked for "latest" also supplies close, date, and volume together,
-// so a still-forming trading session never gets its close from one row and its volume
-// from another (chart() can return a trailing row with a null close for a session that
-// hasn't settled yet - meta's regularMarketVolume can already reflect that same
-// in-progress session, which would silently mismatch the tradingDate we key on).
+// every derived value below comes from this one chart()
 async function fetchTickerSnapshot(ticker) {
     const { period1, period2 } = periodBounds();
 
