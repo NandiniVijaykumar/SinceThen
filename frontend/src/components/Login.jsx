@@ -7,8 +7,8 @@ function Login({ onToken }) {
   return (
     <div className="login-screen">
       <div className="login-card">
-        <h1>Watchlist</h1>
-        <p className="login-tagline">What actually changed since you last looked.</p>
+        <h1>Watchpoint</h1>
+        <p className="login-tagline">A stock watchlist that shows you exactly what changed since you last checked.</p>
         <GoogleLogin
           onSuccess={(credentialResponse) => onToken(credentialResponse.credential)}
           onError={() => setError('Google sign-in failed. Please try again.')}

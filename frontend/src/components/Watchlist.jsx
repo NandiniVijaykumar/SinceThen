@@ -90,7 +90,7 @@ function Watchlist({ token, onLogout }) {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>Watchlist</h1>
+        <h1>Watchpoint</h1>
         <div className="app-header__actions">
           <button type="button" onClick={handleMarkAllSeen} disabled={!items || items.length === 0}>
             Mark all seen
