@@ -3,7 +3,10 @@ const WatchlistItem = require("../models/WatchlistItem");
 const Snapshot = require("../models/Snapshot");
 const fetchTickerSnapshot = require("./fetchTickerSnapshot");
 
-const DELAY_MS = 200;
+const DELAY_MS = 200; // space between per-ticker calls, within a round
+const RATE_LIMIT_COOLDOWN_MS = 45_000; // fixed cooldown before retrying a rate-limited round
+const MAX_ROUNDS = 3;
+
 const { Double } = mongoose.mongo;
 const NUMERIC_FIELDS = ["close", "previousClose", "changePct", "volume", "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "zScore"];
 
@@ -25,39 +28,87 @@ function toDoubleFields(snapshot) {
     return fields;
 }
 
-// Failure isolation (CLAUDE.md §7): each ticker gets its own try/catch. A failure
-// (network, rate-limit, malformed/incomplete data) skips that ticker's upsert only -
-// the existing good snapshot, if any, is left untouched. One bad ticker never aborts
-// the batch.
-async function ingestSnapshots() {
-    const tickers = await WatchlistItem.distinct("ticker");
+// Yahoo signals rate-limiting in whatever shape the underlying HTTP client/library
+// surfaces it in - an HTTP status on the error, or just wording in the message.
+// Treated as strictly distinct from a per-ticker "no data / not found" failure:
+// rate-limiting is transient and about the caller, never evidence the ticker itself
+// is bad, so it must never count toward invalidating a ticker's data.
+function isRateLimitError(err) {
+    const status = err?.response?.status ?? err?.statusCode ?? err?.status;
+    if (status === 429) return true;
+    return typeof err?.message === "string" && /429|too many requests|rate.?limit/i.test(err.message);
+}
+
+async function upsertSnapshot(snapshot) {
+    await Snapshot.collection.updateOne(
+        { ticker: snapshot.ticker, tradingDate: snapshot.tradingDate },
+        { $set: toDoubleFields(snapshot) },
+        { upsert: true }
+    );
+}
+
+// One ingestion function for both callers (daily scheduler + on-add single-ticker
+// fetch): pass an explicit ticker list for a targeted fetch, or omit it to ingest
+// every distinct watched ticker. Same upsert / failure-isolation / trading-date
+// logic either way - no separate "quick fetch" path.
+//
+// Rate-limit handling (space -> backoff -> retry-failed -> cap-and-defer), entirely
+// in-memory within this one function call: no persistent retry queue, no separate
+// retry scheduler, no exponential backoff/jitter. Round 1 attempts every requested
+// ticker with a small delay between calls. Any ticker that comes back rate-limited
+// (as opposed to a genuine per-ticker failure) is deferred to the next round rather
+// than retried immediately; failed rounds wait a fixed cooldown before the next
+// attempt. After MAX_ROUNDS, anything still rate-limited stops being retried this
+// run - it keeps its last-good snapshot (never touched, since a failed fetch never
+// reaches the upsert), is reported as failed/deferred (not invalid), and picks up
+// fresh data on the next scheduled run.
+async function ingestSnapshots(tickers) {
+    const targetTickers = tickers && tickers.length ? tickers : await WatchlistItem.distinct("ticker");
 
     const summary = {
-        attempted: tickers.length,
+        attempted: targetTickers.length,
         succeeded: 0,
         failed: [],
     };
 
-    for (let i = 0; i < tickers.length; i++) {
-        const ticker = tickers[i];
+    let pending = targetTickers;
+    let round = 0;
 
-        try {
-            const snapshot = await fetchTickerSnapshot(ticker);
+    while (pending.length > 0 && round < MAX_ROUNDS) {
+        round += 1;
+        const rateLimited = [];
 
-            await Snapshot.collection.updateOne(
-                { ticker: snapshot.ticker, tradingDate: snapshot.tradingDate },
-                { $set: toDoubleFields(snapshot) },
-                { upsert: true }
-            );
+        for (let i = 0; i < pending.length; i++) {
+            const ticker = pending[i];
 
-            summary.succeeded += 1;
-        } catch (err) {
-            summary.failed.push({ ticker, error: err.message });
+            try {
+                const snapshot = await fetchTickerSnapshot(ticker);
+                await upsertSnapshot(snapshot);
+                summary.succeeded += 1;
+            } catch (err) {
+                if (isRateLimitError(err)) {
+                    rateLimited.push(ticker);
+                } else {
+                    // Genuine per-ticker failure (bad symbol, malformed data, etc.) -
+                    // never overwrite a good snapshot; just skip this ticker's upsert.
+                    summary.failed.push({ ticker, error: err.message });
+                }
+            }
+
+            if (i < pending.length - 1) {
+                await sleep(DELAY_MS);
+            }
         }
 
-        if (i < tickers.length - 1) {
-            await sleep(DELAY_MS);
+        pending = rateLimited;
+
+        if (pending.length > 0 && round < MAX_ROUNDS) {
+            await sleep(RATE_LIMIT_COOLDOWN_MS);
         }
+    }
+
+    for (const ticker of pending) {
+        summary.failed.push({ ticker, error: "Rate-limited after max retry rounds; deferred to next run" });
     }
 
     return summary;
