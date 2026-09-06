@@ -1,4 +1,4 @@
-import { formatPrice } from '../format'
+import { formatPreciseSignal, formatPrice } from '../format'
 import { Freshness, PercentChange } from './Indicators'
 
 function ItemRow({ item, variant, onSelect, onRemove }) {
@@ -33,7 +33,11 @@ function ItemRow({ item, variant, onSelect, onRemove }) {
         )}
       </div>
 
-      {variant === 'changed' && item.reason && <p className="item-row__reason">{item.reason}</p>}
+      {variant === 'changed' && item.reason && (
+        <p className="item-row__reason" title={formatPreciseSignal(item)}>
+          {item.reason}
+        </p>
+      )}
 
       <div className="item-row__footer">
         {!isAwaiting && <Freshness tradingDate={item.tradingDate} fetchedAt={item.fetchedAt} />}

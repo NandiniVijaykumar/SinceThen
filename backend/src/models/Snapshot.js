@@ -9,6 +9,13 @@ const snapshotSchema = new mongoose.Schema({
     volume: { type: Number, required: true },
     zScore: { type: Number, default: null },
     zScoreWindow: { type: Number, required: true },
+    // P1 (D7): confirmation/context on price moves, never a standalone trigger.
+    // Same 30-day-window z-score shape as `zScore`, computed over volumes instead
+    // of returns. `avgVolume` is the trailing baseline mean it was computed
+    // against, kept alongside it so the UI can render a plain-language multiple
+    // ("3.2x avg volume") without recomputing the window from scratch.
+    volumeZScore: { type: Number, default: null },
+    avgVolume: { type: Number, default: null },
     fiftyTwoWeekHigh: { type: Number, required: true },
     fiftyTwoWeekLow: { type: Number, required: true },
     is52wHigh: { type: Boolean, required: true },

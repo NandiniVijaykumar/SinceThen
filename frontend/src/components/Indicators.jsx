@@ -2,7 +2,7 @@ import { formatRelativeTime, formatTradingDate, isStale } from '../format'
 
 export function PercentChange({ value }) {
   if (value === null || value === undefined) {
-    return <span className="pct pct--neutral">—</span>
+    return <span className="pct pct--neutral">-</span>
   }
 
   const pct = value * 100

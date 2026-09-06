@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { markSeen } from '../api'
-import { formatPrice } from '../format'
+import { formatPreciseSignal, formatPrice } from '../format'
 import { Freshness, PercentChange } from './Indicators'
 
 function TickerDetail({ token, ticker, item, onBack, onRemove }) {
@@ -48,8 +48,8 @@ function TickerDetail({ token, ticker, item, onBack, onRemove }) {
       {isAwaiting ? (
         <p className={`badge ${isInvalid ? 'badge--invalid' : 'badge--awaiting'}`}>
           {isInvalid
-            ? 'Symbol may be invalid — repeated attempts to fetch data for this ticker found none.'
-            : 'Awaiting data — no snapshot yet for this ticker.'}
+            ? 'Symbol may be invalid - repeated attempts to fetch data for this ticker found none.'
+            : 'Awaiting data - no snapshot yet for this ticker.'}
         </p>
       ) : (
         <>
@@ -66,7 +66,15 @@ function TickerDetail({ token, ticker, item, onBack, onRemove }) {
             </div>
             <div className="detail-field">
               <span className="detail-label">Z-score</span>
-              <span className="detail-value">{item.zScore !== null ? `${item.zScore.toFixed(2)}σ` : '—'}</span>
+              <span className="detail-value">{item.zScore !== null ? `${item.zScore.toFixed(2)}σ` : '-'}</span>
+              {item.zScore !== null && <span className="detail-caption">30-day window</span>}
+            </div>
+            <div className="detail-field">
+              <span className="detail-label">Volume</span>
+              <span className="detail-value">
+                {item.volumeMultiple !== null ? `${item.volumeMultiple.toFixed(1)}x normal` : '-'}
+              </span>
+              {item.volumeZScore !== null && <span className="detail-caption">z-score {item.volumeZScore.toFixed(2)}</span>}
             </div>
             <div className="detail-field">
               <span className="detail-label">52-week range</span>
@@ -78,7 +86,13 @@ function TickerDetail({ token, ticker, item, onBack, onRemove }) {
 
           <Freshness tradingDate={item.tradingDate} fetchedAt={item.fetchedAt} />
 
-          {item.reason && <p className="detail-reason">{item.reason}</p>}
+          {/* Plain-English in the main list; the precise driving numbers are one
+              tap away here, via the title tooltip and the grid above (§11). */}
+          {item.reason && (
+            <p className="detail-reason" title={formatPreciseSignal(item)}>
+              {item.reason}
+            </p>
+          )}
         </>
       )}
 

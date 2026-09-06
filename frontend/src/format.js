@@ -3,7 +3,7 @@
 const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000
 
 export function formatPrice(value) {
-  if (value === null || value === undefined) return '—'
+  if (value === null || value === undefined) return '-'
   return value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
@@ -29,4 +29,21 @@ export function formatRelativeTime(fetchedAt) {
 export function isStale(fetchedAt) {
   if (!fetchedAt) return false
   return Date.now() - new Date(fetchedAt).getTime() > STALE_THRESHOLD_MS
+}
+
+// The raw z-score stays available (drives ranking, kept in the API response) but
+// is never the primary thing shown - this is the "one tap/hover away" secondary
+// surface for it, used in the reason tooltip and the ticker detail view.
+export function formatPreciseSignal({ zScore, volumeZScore, volumeMultiple }) {
+  const parts = []
+
+  if (zScore !== null && zScore !== undefined) {
+    parts.push(`z-score ${zScore.toFixed(2)} (30-day window)`)
+  }
+
+  if (volumeMultiple !== null && volumeMultiple !== undefined && volumeZScore !== null && volumeZScore !== undefined) {
+    parts.push(`volume ${volumeMultiple.toFixed(1)}x normal (z ${volumeZScore.toFixed(2)})`)
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : undefined
 }

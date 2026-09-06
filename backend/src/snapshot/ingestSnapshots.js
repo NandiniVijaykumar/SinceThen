@@ -9,7 +9,17 @@ const RATE_LIMIT_COOLDOWN_MS = 45_000; // fixed cooldown before retrying a rate-
 const MAX_ROUNDS = 3;
 
 const { Double } = mongoose.mongo;
-const NUMERIC_FIELDS = ["close", "previousClose", "changePct", "volume", "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "zScore"];
+const NUMERIC_FIELDS = [
+    "close",
+    "previousClose",
+    "changePct",
+    "volume",
+    "fiftyTwoWeekHigh",
+    "fiftyTwoWeekLow",
+    "zScore",
+    "volumeZScore",
+    "avgVolume",
+];
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
