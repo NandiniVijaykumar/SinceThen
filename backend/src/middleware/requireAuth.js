@@ -21,8 +21,6 @@ async function requireAuth(req, res, next) {
             email: payload.email,
             name: payload.name,
         };
-
-        console.log(token);
         next();
     } catch (err) {
         return res.status(401).json({ success: false, error: "Invalid or expired token" });
